@@ -22,6 +22,9 @@ void free_form(form_t* form) {
     case CIRCLE:
         free_circle(form->data.circle);
         break;
+    case POLYLINE:
+        free_polyline(form->data.polyline);
+        break;
     }
 }
 

@@ -64,9 +64,24 @@ typedef struct line_s{
 line_t* create_line(void);
 void free_line(line_t* line);
 
-typedef struct polyline_s{
+typedef struct points_s{
+    int x;
+    int y;
+    struct points_s* next;
+}points_t;
 
+typedef struct polyline_s{
+    points_t* head;
 }polyline_t;
+
+polyline_t* create_polyline(void);
+void free_polyline(polyline_t* polyline);
+void free_point_list(points_t* head);
+int add_point_to_polyline(polyline_t* polyline, int x, int y);
+size_t count_polyline_points(const polyline_t* polyline);
+points_t* get_point_by_index(polyline_t* polyline, int index);
+int modify_point_at_index(polyline_t* polyline, int index, int x, int y);
+int delete_point_at_index(polyline_t* polyline, int index);
 
 typedef struct polygone_s{
 
@@ -86,6 +101,7 @@ typedef union shapes_s{
     line_t* line;
     square_t* square;
     circle_t* circle;
+    polyline_t* polyline;
 }shapes_t;
 
 typedef enum form_type_s{
@@ -94,6 +110,7 @@ typedef enum form_type_s{
     LINE = 3,
     SQUARE = 4,
     CIRCLE = 5,
+    POLYLINE = 6,
 }form_type_t;
 
 typedef struct form_s{
@@ -135,5 +152,7 @@ void edit_square_parameters(square_t* square);
 void edit_circle_parameters(circle_t* circle);
 
 void edit_shapes(list_shapes_t* list);
+
+void edit_polyline_parameters(polyline_t* polyline);
 
 #endif

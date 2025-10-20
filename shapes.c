@@ -113,13 +113,74 @@ void free_line(line_t* line){
     free(line);
 }
 
+void free_point_list(points_t* head) {
+    points_t* current = head;
+    points_t* next;
+    
+    while (current != NULL) {
+        next = current->next; 
+        free(current);        
+        current = next;       
+    }
+}
+
+polyline_t* create_polyline(void) {
+    polyline_t* polyline = malloc(sizeof(polyline_t));
+    if (polyline == NULL) {
+        fprintf(stderr, "Error: failing to allocate memory for the polyline.\n");
+        return NULL;
+    }
+    polyline->head = NULL;
+    return polyline;
+}
+
+void free_polyline(polyline_t* polyline) {
+    if (polyline == NULL) return;
+    free_point_list(polyline->head);
+    free(polyline);
+}
+
+int add_point_to_polyline(polyline_t* polyline, int x, int y) {
+    points_t* new_point = malloc(sizeof(points_t));
+    if (new_point == NULL) {
+        fprintf(stderr, "Error: failed to allocate memory for new point.\n");
+        return 0;
+    }
+    new_point->x = x;
+    new_point->y = y;
+    new_point->next = NULL; 
+    if (polyline->head == NULL) {
+        polyline->head = new_point;
+    } else {
+        points_t* current = polyline->head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = new_point;
+    }
+    return 1;
+}
+
+size_t count_polyline_points(const polyline_t* polyline) {
+    if (polyline == NULL) {
+        return 0;
+    }
+    size_t count = 0;
+    points_t* current = polyline->head;
+    while (current != NULL) {
+        count++;
+        current = current->next;
+    }
+    return count;
+}
+
 void choice_shapes_and_insert(list_shapes_t* list) {
     int user_choice = 0;
     form_t* newform = NULL;
-    while (user_choice < 1 || user_choice > 5) {
-        user_choice = ask_for_int("Please select a form you want to for your viewbox, press: 1(rectangle), 2(ellipse), 3(line), 4(square), 5(circle).\nYour choice: ");
-        if (user_choice < 1 || user_choice > 5) {
-            printf("Incorrect input, please select 1, 2, 3, 4 or 5.\n");
+    while (user_choice < 1 || user_choice > 6) {
+        user_choice = ask_for_int("Please select a form you want to for your viewbox, press: 1(rectangle), 2(ellipse), 3(line), 4(square), 5(circle), 6(polyline).\nYour choice: ");
+        if (user_choice < 1 || user_choice > 6) {
+            printf("Incorrect input, please select 1, 2, 3, 4, 5 or 6.\n");
         }
     }
     newform = malloc(sizeof(form_t));
@@ -129,6 +190,7 @@ void choice_shapes_and_insert(list_shapes_t* list) {
     }
     switch (user_choice) {
     case RECTANGLE:
+        printf("[Rectangle] selected.\n");
         newform->type = RECTANGLE;
         newform->data.rectangle = create_rectangle();
         newform->data.rectangle->x = ask_for_int("Please enter your starting x for your rectangle: ");
@@ -140,6 +202,7 @@ void choice_shapes_and_insert(list_shapes_t* list) {
         display_list_shapes(list);
         break;
     case ELLIPSE:
+        printf("[Ellipse] selected.\n");
         newform->type = ELLIPSE;
         newform->data.ellipse = create_ellipse();
         newform->data.ellipse->cx = ask_for_int("Please enter your starting x for your ellipse: ");
@@ -151,6 +214,7 @@ void choice_shapes_and_insert(list_shapes_t* list) {
         display_list_shapes(list);
         break;
     case LINE:
+        printf("[Line] selected.\n");
         newform->type = LINE;
         newform->data.line = create_line();
         newform->data.line->x_1 = ask_for_int("Please enter your x_1 for your line: ");
@@ -162,6 +226,7 @@ void choice_shapes_and_insert(list_shapes_t* list) {
         display_list_shapes(list);
         break;
     case SQUARE:
+        printf("[Square] selected.\n");
         newform->type = SQUARE;
         newform->data.square = create_square();
         newform->data.square->x = ask_for_int("Please enter your starting x for your square: ");
@@ -173,6 +238,7 @@ void choice_shapes_and_insert(list_shapes_t* list) {
         display_list_shapes(list);
         break;
     case CIRCLE:
+        printf("[Circle] selected.\n");
         newform->type = ELLIPSE;
         newform->data.circle = create_circle();
         newform->data.circle->cx = ask_for_int("Please enter your starting x for your circle: ");
@@ -182,7 +248,29 @@ void choice_shapes_and_insert(list_shapes_t* list) {
         printf("You create a circle with the following parameters: x:%d y:%d rx:%d ry:%d.\n", newform->data.circle->cx, newform->data.circle->cy, newform->data.circle->rx, newform->data.circle->ry);
         insert_form_head(list, newform);
         display_list_shapes(list);
-        break;  
+        break;
+    case POLYLINE:
+        printf("[Polyline] selected.\n");
+        newform->type = POLYLINE;
+        newform->data.polyline = create_polyline();
+        int x, y;
+        int count = 1;
+        while (1) {
+            printf("--- Point %d ---\n", count);
+            x = ask_for_int("Please enter x (or -1 to finish): ");
+            if (x < 0) break;
+            y = ask_for_int("Please enter y: ");
+            if (!add_point_to_polyline(newform->data.polyline, x, y)) {
+                fprintf(stderr, "Failed to add point, stopping input.\n");
+                break;
+            }
+            count++;
+        }
+        size_t final_count = count_polyline_points(newform->data.polyline);
+        printf("Polyline created with %lu points.\n", (unsigned long)final_count);
+        insert_form_head(list, newform);
+        display_list_shapes(list);
+        break;
     }
 }
 
@@ -280,6 +368,27 @@ void display_list_shapes(list_shapes_t* list) {
                     printf("CIRCLE: [ERROR: Data pointer from the circle is NULL]\n");
                 }
                 break;
+            case POLYLINE:
+                polyline_t* poly = form->data.polyline;
+                if (poly && poly->head) {
+                    size_t point_count = count_polyline_points(poly);
+                    printf("POLYLINE: [%lu points : ", (unsigned long)point_count);
+                    points_t* current_point = poly->head;
+                    size_t i = 0;
+                    while (current_point != NULL && i < 3) {
+                        printf("(%d,%d)%s", 
+                               current_point->x, 
+                               current_point->y, 
+                               (current_point->next != NULL && i < 2) ? ", " : "");
+                        current_point = current_point->next;
+                        i++;
+                    }
+                    if (point_count > 3) printf(", ...");
+                    printf("]\n");
+                } else {
+                    printf("POLYLINE: [ERROR: Data pointer from the polyline is NULL or there is no points]\n");
+                }
+                break;
             default:
                 printf("[TYPE OF SHAPE UNKNOWN : %d]\n", form->type);
                 break;
@@ -288,7 +397,6 @@ void display_list_shapes(list_shapes_t* list) {
         current = current->next;
         count++;
     }
-    printf("-----------------------------\n");
 }
 
 node_t* get_shapes_index(list_shapes_t* list, int index){
@@ -307,6 +415,55 @@ node_t* get_shapes_index(list_shapes_t* list, int index){
     return NULL;
 }
 
+points_t* get_point_by_index(polyline_t* polyline, int index) {
+    if (polyline == NULL || index <= 0) return NULL;
+    points_t* current = polyline->head;
+    int current_index = 1;
+    while (current != NULL) {
+        if (current_index == index) {
+            return current;
+        }
+        current = current->next;
+        current_index++;
+    }
+    return NULL;
+}
+
+int modify_point_at_index(polyline_t* polyline, int index, int x, int y) {
+    points_t* target = get_point_by_index(polyline, index);
+    if (target == NULL) {
+        return 0;
+    }
+    target->x = x;
+    target->y = y;
+    return 1;
+}
+
+int delete_point_at_index(polyline_t* polyline, int index) {
+    if (polyline == NULL || index <= 0) return 0;
+
+    points_t* current = polyline->head;
+    points_t* temp = NULL;
+
+    if (index == 1) {
+        if (current == NULL) return 0;
+        polyline->head = current->next;
+        free(current);
+        return 1;
+    }
+    int current_index = 1;
+    while (current != NULL && current_index < index - 1) {
+        current = current->next;
+        current_index++;
+    }
+    if (current == NULL || current->next == NULL) {
+        return 0;
+    }
+    temp = current->next;
+    current->next = temp->next;
+    free(temp);
+    return 1;
+}
 
 void edit_shapes(list_shapes_t* list){
     if (list == NULL || list->head == NULL){
@@ -328,30 +485,26 @@ void edit_shapes(list_shapes_t* list){
     
     form_t* form_edit = shapes_edit->data_form;
 
-    printf("Starting editing process with shapes #%d(Type : %d).", index_edit, form_edit->type);
-
-    printf("--- DEBUG: SHAPE SELECTED, STARTING SWITCH ---\n");
+    printf("Starting editing process.\n");
 
     switch (form_edit->type) {
     case RECTANGLE:
-        printf("Editing RECTANGLE.\n");
         edit_rectangle_parameters(form_edit->data.rectangle);
         break;
     case ELLIPSE:
-        printf("Editing ELLIPSE.\n");
         edit_ellipse_parameters(form_edit->data.ellipse);
         break;
     case LINE:
-        printf("Editing LINE.\n");
         edit_line_parameters(form_edit->data.line);
         break;
     case SQUARE:
-        printf("Editing SQUARE.\n");
         edit_square_parameters(form_edit->data.square);
         break;
     case CIRCLE:
-        printf("Editing CIRCLE.\n");
         edit_circle_parameters(form_edit->data.circle);
+        break;
+    case POLYLINE:
+        edit_polyline_parameters(form_edit->data.polyline);
         break;
     default:
         printf("Error: unknown shapes.");
@@ -359,7 +512,7 @@ void edit_shapes(list_shapes_t* list){
     }
     printf("\n--- List of shapes update ---\n");
     display_list_shapes(list);
-    printf("--------------------------------");
+    printf("--------------------------------\n");
 }
 
 void edit_rectangle_parameters(rectangle_t* rectangle){
@@ -427,4 +580,92 @@ void edit_circle_parameters(circle_t* circle){
     circle->ry = circle->rx;
     printf("New value for ry: %d", circle->ry);
     printf("circle update : cx:%d cy:%d rx:%d ry:%d.\n", circle->cx, circle->cy, circle->rx, circle->ry);
+}
+
+void edit_polyline_parameters(polyline_t* polyline){
+    int choice = -1;
+    int index_edit;
+    int x_new, y_new;
+    size_t count;
+
+    printf("--- Editing POLYLINE ---\n");
+
+    while (choice != 0) {
+        count = count_polyline_points(polyline);
+        printf("\nCurrent POLYLINE has %lu points.\n", (unsigned long)count);
+
+        if (count == 0) {
+            printf("The polyline is empty. Only option 1 (Add) is available.\n");
+            choice = 1;
+        } else {
+            printf("Options:\n");
+            printf("1. Add a new point (at the end)\n");
+            printf("2. Modify an existing point\n");
+            printf("3. Delete an existing point\n");
+            printf("0. Finish editing this polyline\n");
+            choice = ask_for_int("Your choice: ");
+        }
+
+        switch (choice) {
+            case 1:
+                printf("--- Adding Point (End of list) ---\n");
+                x_new = ask_for_int("New x coordinate: ");
+                y_new = ask_for_int("New y coordinate: ");
+                
+                if (add_point_to_polyline(polyline, x_new, y_new)) {
+                    printf("Point successfully added.\n");
+                } else {
+                    printf("Error: Failed to add point.\n");
+                }
+                break;
+
+            case 2:
+                if (count == 0) { printf("No points to modify.\n"); break; }
+                printf("--- Modifying Point ---\n");
+                printf("Enter the index of the point to modify(1 to %lu): ", (unsigned long)count);
+                index_edit = ask_for_int("Your choice:: ");
+                
+                if (index_edit < 1 || index_edit > (int)count) {
+                    printf("Invalid point index.\n");
+                    break;
+                }
+                
+                x_new = ask_for_int("New x coordinate: ");
+                y_new = ask_for_int("New y coordinate: ");
+                
+                if (modify_point_at_index(polyline, index_edit, x_new, y_new)) {
+                    printf("Point %d successfully updated to (%d,%d).\n", index_edit, x_new, y_new);
+                } else {
+                    printf("Error: Failed to find or modify point at index %d.\n", index_edit);
+                }
+                break;
+
+            case 3:
+                if (count == 0) { printf("No points to delete.\n"); break; }
+                printf("--- Deleting Point ---\n");
+                printf("Enter the index of the point to delete (1 to %lu): ", (unsigned long)count);
+                index_edit = ask_for_int("Your choice: ");
+                
+                if (index_edit < 1 || index_edit > (int)count) {
+                    printf("Invalid point index.\n");
+                    break;
+                }
+                
+                if (delete_point_at_index(polyline, index_edit)) {
+                    printf("Point %d successfully deleted.\n", index_edit);
+                } else {
+                    printf("Error: Failed to delete point at index %d.\n", index_edit);
+                }
+                break;
+
+            case 0:
+                printf("Finishing polyline editing.\n");
+                break;
+
+            default:
+                printf("Invalid choice. Please select 0, 1, 2, or 3.\n");
+                break;
+        }
+    }
+    printf("POLYLINE edit finished.\n");
 }
