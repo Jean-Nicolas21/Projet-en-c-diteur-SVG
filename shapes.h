@@ -83,17 +83,6 @@ points_t* get_point_by_index(polyline_t* polyline, int index);
 int modify_point_at_index(polyline_t* polyline, int index, int x, int y);
 int delete_point_at_index(polyline_t* polyline, int index);
 
-typedef struct polygone_s{
-
-}polygone_t;
-
-typedef struct path_s{
-
-}path_t;
-
-typedef struct group_s{
-
-}group_t;
 
 typedef union shapes_s{
     rectangle_t* rectangle;
